@@ -65,7 +65,7 @@ public sealed class WindowService(IDesktopService desktops) : IWindowService
         try { membership = await desktops.GetMembershipAsync(hwnd); }
         catch { membership = new(Guid.Empty, false); }
         if (!Native.IsWindow(hwnd) || (identity.ProcessStarted != 0 && !IsValid(identity))) return null;
-        return new(identity, text.ToString(), path is null ? "应用" : Path.GetFileNameWithoutExtension(path), path,
+        return new(identity, text.ToString(), path is null ? Localization.T("应用", "Application") : Path.GetFileNameWithoutExtension(path), path,
             membership.Id, screen.Id, rect.ToRect(), restore,
             minimized ? WindowShowState.Minimized : Native.IsZoomed(hwnd) ? WindowShowState.Maximized : WindowShowState.Normal,
             membership.IsPinned, cloaked != 0, affinity != 0, identity.ProcessStarted != 0);
@@ -86,7 +86,7 @@ public sealed class WindowService(IDesktopService desktops) : IWindowService
     }
     public Task ApplyPlacementAsync(WindowIdentity identity, PixelRect bounds, WindowShowState state)
     {
-        if (!IsValid(identity)) throw new InvalidOperationException("窗口身份已变化。");
+        if (!IsValid(identity)) throw new InvalidOperationException(Localization.T("窗口身份已变化。", "The window identity changed."));
         var placement = new Native.WINDOWPLACEMENT { Length = (uint)Marshal.SizeOf<Native.WINDOWPLACEMENT>() };
         if (!Native.GetWindowPlacement(identity.Handle, ref placement)) throw new Win32Exception(Marshal.GetLastWin32Error());
         var targetRect = Native.RECT.From(bounds);
@@ -100,12 +100,12 @@ public sealed class WindowService(IDesktopService desktops) : IWindowService
         placement.ShowCmd = state == WindowShowState.Minimized ? 7u : 4u;
         var foreground = Native.GetForegroundWindow();
         if (!Native.SetWindowPlacement(identity.Handle, ref placement))
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法移动窗口，可能需要与目标应用相同的权限。");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), Localization.T("无法移动窗口，可能需要与目标应用相同的权限。", "The window could not be moved; it may require the same permissions as the target application."));
         if (state == WindowShowState.Maximized)
         {
             placement.ShowCmd = 3;
             if (!Native.SetWindowPlacement(identity.Handle, ref placement))
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "目标位置已改变，但无法恢复最大化状态。");
+                throw new Win32Exception(Marshal.GetLastWin32Error(), Localization.T("目标位置已改变，但无法恢复最大化状态。", "The target position changed, but the maximized state could not be restored."));
         }
         // SetWindowPlacement can activate a maximized window. Keep the user's manager focused.
         if (foreground != 0 && Native.GetForegroundWindow() != foreground) Native.SetForegroundWindow(foreground);
@@ -113,18 +113,18 @@ public sealed class WindowService(IDesktopService desktops) : IWindowService
     }
     public Task ActivateAsync(WindowIdentity identity)
     {
-        if (!IsValid(identity)) throw new InvalidOperationException("窗口已关闭。");
+        if (!IsValid(identity)) throw new InvalidOperationException(Localization.T("窗口已关闭。", "The window is closed."));
         if (Native.IsIconic(identity.Handle)) Native.ShowWindowAsync(identity.Handle, 9);
-        if (!Native.SetForegroundWindow(identity.Handle)) throw new InvalidOperationException("Windows 暂时未允许激活该窗口，请再次点击。");
+        if (!Native.SetForegroundWindow(identity.Handle)) throw new InvalidOperationException(Localization.T("Windows 暂时未允许激活该窗口，请再次点击。", "Windows did not allow the window to activate. Try again."));
         return Task.CompletedTask;
     }
     public Task RequestCloseAsync(WindowIdentity identity)
     {
-        if (!IsValid(identity)) throw new InvalidOperationException("窗口已关闭或身份已变化。");
+        if (!IsValid(identity)) throw new InvalidOperationException(Localization.T("窗口已关闭或身份已变化。", "The window is closed or its identity changed."));
         // Post WM_CLOSE rather than terminating the process: the application's
         // own save prompts, cancellation and close-to-tray behavior remain intact.
         if (!Native.PostMessage(identity.Handle, 0x0010, 0, 0))
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法请求关闭窗口，目标应用可能以更高权限运行。");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), Localization.T("无法请求关闭窗口，目标应用可能以更高权限运行。", "The close request could not be sent; the target application may be running with higher permissions."));
         return Task.CompletedTask;
     }
 }

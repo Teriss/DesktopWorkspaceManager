@@ -5,6 +5,8 @@ This release fixes the crash and stale-card behavior that could occur after clos
 ## Included
 
 - Error-only notification banners. Routine success, information, and warning states remain silent.
+- Chinese and English UI with an in-app language selector; tray labels, menus, settings, and operation errors follow the selected language.
+- English README button labels and a complete Chinese README (`README.zh-CN.md`).
 - Stable preview fallback updates when a DWM source window disappears.
 - Close-button lifecycle regression coverage with real fixture windows, including cancelled close requests.
 - Card and native preview-host cleanup without rebuilding unrelated cards.

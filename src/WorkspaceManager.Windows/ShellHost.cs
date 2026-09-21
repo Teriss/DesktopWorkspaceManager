@@ -4,7 +4,7 @@ using WorkspaceManager.Core;
 
 namespace WorkspaceManager.Windows;
 
-public sealed record AppSettings(uint HotkeyModifiers = 8, uint HotkeyKey = 0xC0, string Theme = "Default")
+public sealed record AppSettings(uint HotkeyModifiers = 8, uint HotkeyKey = 0xC0, string Theme = "Default", string Language = Localization.Chinese)
 {
     public static AppSettings Load()
     {
@@ -60,7 +60,7 @@ public sealed class ShellHost : IDisposable
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
         var icon = Native.LoadImage(0, iconPath, 1, 32, 32, 0x10);
         tray = new() { Size = (uint)Marshal.SizeOf<Native.NOTIFYICONDATA>(), Window = hwnd, Id = 1, Flags = 1 | 2 | 4,
-            CallbackMessage = 0x8001, Icon = icon != 0 ? icon : Native.LoadIcon(0, (nint)32512), Tip = "桌面工作区管理器", Info = "", InfoTitle = "" };
+            CallbackMessage = 0x8001, Icon = icon != 0 ? icon : Native.LoadIcon(0, (nint)32512), Tip = Localization.T("桌面工作区管理器", "Desktop Workspace Manager"), Info = "", InfoTitle = "" };
         if (registerNotifications) Native.Shell_NotifyIcon(0, ref tray);
         eventProcedure = (_, evt, window, objectId, childId, thread, time) =>
         {
@@ -87,6 +87,11 @@ public sealed class ShellHost : IDisposable
         Native.ShowWindow(hwnd, 5); Native.SetForegroundWindow(hwnd);
     }
     public void Hide() => Native.ShowWindow(hwnd, 0);
+    public void UpdateLanguage()
+    {
+        tray.Tip = Localization.T("桌面工作区管理器", "Desktop Workspace Manager");
+        Native.Shell_NotifyIcon(0, ref tray);
+    }
     public (int X, int Y) GetCursorScreenPosition()
     {
         Native.GetCursorPos(out var point);
@@ -142,8 +147,8 @@ public sealed class ShellHost : IDisposable
                 if ((int)lp == 0x205)
                 {
                     var menu = Native.CreatePopupMenu();
-                    Native.AppendMenu(menu, 0, 1, "打开管理器"); Native.AppendMenu(menu, 0, 2, "设置");
-                    Native.AppendMenu(menu, 0x800, 0, null); Native.AppendMenu(menu, 0, 3, "退出");
+                    Native.AppendMenu(menu, 0, 1, Localization.T("打开管理器", "Open manager")); Native.AppendMenu(menu, 0, 2, Localization.T("设置", "Settings"));
+                    Native.AppendMenu(menu, 0x800, 0, null); Native.AppendMenu(menu, 0, 3, Localization.T("退出", "Exit"));
                     Native.GetCursorPos(out var p); Native.SetForegroundWindow(hwnd);
                     uint command = Native.TrackPopupMenu(menu, 0x100 | 2, p.X, p.Y, 0, hwnd, 0);
                     Native.DestroyMenu(menu); Native.PostMessage(hwnd, 0, 0, 0);

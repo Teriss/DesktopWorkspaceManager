@@ -1,5 +1,7 @@
 # Desktop Workspace Manager
 
+[简体中文](README.zh-CN.md)
+
 Desktop Workspace Manager is a native Windows 11 utility for managing virtual desktops, physical monitors, and top-level application windows from one visual surface. It is designed for people who keep development, communication, games, and downloads open at the same time and need to move a window without first navigating through Win+Tab.
 
 The current release is **0.1.4**, a focused first usable version. It concentrates on reliable discovery, live previews, and combined desktop/monitor moves. See the [0.1.4 release notes](docs/RELEASE_NOTES-0.1.4.md) for the crash fix and validation scope. Workspace definitions, application launch plans, and PowerToys import are planned for a later release.
@@ -16,6 +18,7 @@ The current release is **0.1.4**, a focused first usable version. It concentrate
 - Errors remain visible until dismissed. Routine success, information, and warning states do not create a notification banner.
 - Mixed-DPI, negative-coordinate, portrait-monitor, taskbar, maximized, and minimized-window handling.
 - Single-instance operation with a tray icon and configurable global hotkey (`Win + \`` by default).
+- Chinese and English UI, switchable from **Settings → Language** without restarting the manager.
 - Ordinary user permissions; no automatic elevation and no window-image logging.
 
 ## Requirements
@@ -50,7 +53,7 @@ The manager opens on the monitor containing the pointer. Closing the panel or pr
 
 ## Interaction model
 
-The top desktop cards select what is shown. The emphasized card is the desktop being viewed; a `当前所在` caption identifies the system's current desktop. `进入桌面` switches the system desktop and closes the panel.
+The top desktop cards select what is shown. The emphasized card is the desktop being viewed; a `current` caption identifies the system's current desktop. `Enter desktop` switches the system desktop and closes the panel.
 
 Window cards support the following operations:
 
@@ -58,7 +61,7 @@ Window cards support the following operations:
 2. Hover the title row to reveal the close button in the upper-right corner.
 3. Drag to a desktop card to change only desktop membership.
 4. Drag to a monitor panel, including its blank space, to change desktop membership and monitor placement together.
-5. Right-click for `打开窗口` and `移动到` commands.
+5. Right-click for `Open window` and `Move to` commands.
 6. Press `Esc` to cancel a drag or close the panel.
 
 The manager keeps the panel open after a move. Window position is calculated in the target monitor's work area, preserving logical size across DPI changes and clamping oversized or partly off-screen rectangles. Maximized and minimized state is restored after a move where Windows permits it.

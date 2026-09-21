@@ -24,7 +24,7 @@ public sealed class DwmPreviewProvider : IWindowPreviewProvider
         public DwmPreview(nint owner, WindowInfo window, Action<int> wheel)
         {
             this.wheel = wheel;
-            if (window.IsProtected) { UnavailableReason = "此窗口不允许预览"; return; }
+            if (window.IsProtected) { UnavailableReason = Localization.T("此窗口不允许预览", "This window does not allow previews"); return; }
             // DWM may retain a minimized window's last frame. Never restore it to capture.
             if (atom == 0)
             {
@@ -35,11 +35,11 @@ public sealed class DwmPreviewProvider : IWindowPreviewProvider
             // Disabled display-only HWNDs are skipped by WindowFromPoint/OLE drop
             // targeting. Keep previews visible while XAML receives drag and wheel input.
             host = Native.CreateWindowEx(0x08000080, "WorkspaceManager.Preview", "", 0x88000000, 0, 0, 1, 1, owner, 0, Native.GetModuleHandle(null), 0);
-            if (host == 0) { UnavailableReason = "无法创建预览"; return; }
+            if (host == 0) { UnavailableReason = Localization.T("无法创建预览", "The preview host could not be created"); return; }
             Hosts.Add(host, this);
             int hr = Native.DwmRegisterThumbnail(host, window.Identity.Handle, out thumbnail);
             IsAvailable = hr >= 0;
-            if (!IsAvailable) UnavailableReason = "系统暂时无法提供预览";
+            if (!IsAvailable) UnavailableReason = Localization.T("系统暂时无法提供预览", "The system cannot provide a preview right now");
         }
         private static nint WndProc(nint hwnd, uint msg, nuint wp, nint lp)
         {
@@ -65,7 +65,7 @@ public sealed class DwmPreviewProvider : IWindowPreviewProvider
             {
                 sizeChecked = now;
                 if (Native.DwmQueryThumbnailSourceSize(thumbnail, out sourceSize) < 0)
-                { Fail("窗口预览已失效"); return; }
+                { Fail(Localization.T("窗口预览已失效", "The window preview is no longer available")); return; }
             }
             var geometry = PreviewGeometry.Calculate(placement, sourceSize.Width, sourceSize.Height);
             if (geometry is null) { last = null; Show(false); return; }
@@ -78,7 +78,7 @@ public sealed class DwmPreviewProvider : IWindowPreviewProvider
                     Destination = Native.RECT.From(new(0, 0, r.Width, r.Height)), Source = Native.RECT.From(geometry.SourceBounds),
                     Opacity = 255, Visible = true, ClientOnly = false };
                 if (Native.DwmUpdateThumbnailProperties(thumbnail, ref props) < 0)
-                { Fail("窗口预览已失效"); return; }
+                { Fail(Localization.T("窗口预览已失效", "The window preview is no longer available")); return; }
                 last = geometry;
             }
             Show(visible);

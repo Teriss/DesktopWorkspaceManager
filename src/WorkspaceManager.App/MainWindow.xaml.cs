@@ -67,7 +67,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public MainWindow(bool diagnostic = false)
     {
+        Localization.Set(settings.Language);
         InitializeComponent();
+        ApplyLanguage();
         SystemBackdrop = new MicaBackdrop();
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
@@ -105,8 +107,8 @@ public sealed partial class MainWindow : Window, IDisposable
             { lastWidth = Root.ActualWidth; Render(); }
         };
         ApplyTheme();
-        if (!diagnostic && !shell.RegisterHotkey(settings)) Inform("快捷键被其他应用占用，请在设置中修改；托盘入口仍可使用。", InfoBarSeverity.Warning);
-        ShortcutHint.Text = $"{settings.HotkeyLabel} 呼出 / 收起";
+        if (!diagnostic && !shell.RegisterHotkey(settings)) Inform(Localization.T("快捷键被其他应用占用，请在设置中修改；托盘入口仍可使用。", "The shortcut is already in use. Change it in Settings; the tray remains available."), InfoBarSeverity.Warning);
+        ShortcutHint.Text = $"{settings.HotkeyLabel} {Localization.T("呼出 / 收起", "show / hide")}";
     }
     public async Task ValidateUiWithoutShowingAsync()
     {
@@ -303,7 +305,11 @@ public sealed partial class MainWindow : Window, IDisposable
         CreateButton.IsEnabled = snapshot.IsAvailable && !busy;
         EnterButton.IsEnabled = snapshot.IsAvailable && !busy;
         var viewed = snapshot.Desktops.FirstOrDefault(d => d.Id == selectedDesktop);
-        Subtitle.Text = snapshot.IsAvailable ? $"正在查看 {viewed?.Name}  ·  {monitorList.Count} 个显示器  ·  {VisibleWindows().Count()} 个窗口" : $"显示器管理  ·  {windowList.Count} 个窗口";
+        Subtitle.Text = snapshot.IsAvailable
+            ? T($"正在查看 {viewed?.Name}  ·  {monitorList.Count} 个显示器  ·  {VisibleWindows().Count()} 个窗口",
+                $"Viewing {viewed?.Name}  ·  {monitorList.Count} monitor" + (monitorList.Count == 1 ? "" : "s") + $"  ·  {VisibleWindows().Count()} window" + (VisibleWindows().Count() == 1 ? "" : "s"))
+            : T($"显示器管理  ·  {windowList.Count} 个窗口",
+                $"Monitor management  ·  {windowList.Count} window" + (windowList.Count == 1 ? "" : "s"));
         string nextDesktopSignature = selectedDesktop + ":" + snapshot.IsAvailable + ":" +
             string.Join("|", snapshot.Desktops.Select(d => $"{d.Id}:{d.Name}:{d.IsCurrent}:{windowList.Count(w => w.DesktopId == d.Id || w.IsPinned)}"));
         if (desktopSignature != nextDesktopSignature)
@@ -314,29 +320,29 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             int count = windowList.Count(w => w.DesktopId == desktop.Id || w.IsPinned);
             var title = new TextBlock { Text = desktop.Name, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, MaxWidth = 210, TextTrimming = TextTrimming.CharacterEllipsis };
-            var caption = new TextBlock { Text = $"{count} 个窗口" + (desktop.IsCurrent ? "  ·  当前所在" : ""), FontSize = 12, Style = LocalStyle("SecondaryTextStyle") };
+            var caption = new TextBlock { Text = WindowCount(count) + (desktop.IsCurrent ? T("  ·  当前所在", "  ·  current") : ""), FontSize = 12, Style = LocalStyle("SecondaryTextStyle") };
             var stack = new StackPanel { Spacing = 7 }; stack.Children.Add(title); stack.Children.Add(caption);
             var button = new Button { Content = stack, Padding = new Thickness(18, 13, 18, 13), MinWidth = 164, Height = 80,
                 BorderThickness = new Thickness(desktop.Id == selectedDesktop ? 2 : 1), AllowDrop = true, CornerRadius = new CornerRadius(10) };
             if (desktop.Id == selectedDesktop) button.BorderBrush = Brush("SystemControlHighlightAccentBrush");
-            AutomationProperties.SetName(button, $"查看{desktop.Name}");
+            AutomationProperties.SetName(button, T($"查看{desktop.Name}", $"View {desktop.Name}"));
             button.Click += (_, _) => { selectedDesktop = desktop.Id; Render(); };
             button.DragOver += (_, e) =>
             {
                 SetDropMonitor(null);
-                AcceptDrag(e, $"移动到 {desktop.Name}");
+                AcceptDrag(e, T($"移动到 {desktop.Name}", $"Move to {desktop.Name}"));
                 if (draggedWindow is not null && (!hoverTimer.IsEnabled || hoverDesktop != desktop.Id))
                 { hoverDesktop = desktop.Id; hoverTimer.Stop(); hoverTimer.Start(); }
             };
             button.DragLeave += (_, _) => hoverTimer.Stop();
             button.Drop += async (_, e) => { e.Handled = true; hoverTimer.Stop(); await DropAsync(desktop.Id, null); };
             var menu = new MenuFlyout();
-            var rename = new MenuFlyoutItem { Text = "重命名" }; rename.Click += async (_, _) => await RenameDesktopAsync(desktop);
-            var remove = new MenuFlyoutItem { Text = "删除桌面…", IsEnabled = snapshot.Desktops.Count > 1 }; remove.Click += async (_, _) => await RemoveDesktopAsync(desktop);
+            var rename = new MenuFlyoutItem { Text = T("重命名", "Rename") }; rename.Click += async (_, _) => await RenameDesktopAsync(desktop);
+            var remove = new MenuFlyoutItem { Text = T("删除桌面…", "Delete desktop…"), IsEnabled = snapshot.Desktops.Count > 1 }; remove.Click += async (_, _) => await RemoveDesktopAsync(desktop);
             menu.Items.Add(rename); menu.Items.Add(remove); ConfigureMenu(menu); button.ContextFlyout = menu;
             DesktopStrip.Children.Add(button);
         }
-        if (!snapshot.IsAvailable) DesktopStrip.Children.Add(new TextBlock { Text = "虚拟桌面暂不可用", Margin = new Thickness(0, 24, 0, 24) });
+        if (!snapshot.IsAvailable) DesktopStrip.Children.Add(new TextBlock { Text = T("虚拟桌面暂不可用", "Virtual desktops are unavailable"), Margin = new Thickness(0, 24, 0, 24) });
         }
         var desired = VisibleWindows().OrderBy(w => previewCards.TryGetValue(w.Identity, out var card) ? card.Order : long.MaxValue).ToArray();
         var identities = desired.Select(w => w.Identity).ToHashSet();
@@ -376,8 +382,8 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         var stack = new StackPanel { Spacing = 18 };
         var heading = new StackPanel { Spacing = 5 };
-        heading.Children.Add(new TextBlock { Text = monitor.Name + (monitor.IsPrimary ? "  ·  主屏幕" : ""), FontSize = 19, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        heading.Children.Add(new TextBlock { Text = $"{monitor.Bounds.Width} × {monitor.Bounds.Height}  ·  {monitor.Dpi * 100 / 96}% 缩放", FontSize = 12, Style = LocalStyle("SecondaryTextStyle") });
+        heading.Children.Add(new TextBlock { Text = monitor.Name + (monitor.IsPrimary ? T("  ·  主屏幕", "  ·  primary") : ""), FontSize = 19, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        heading.Children.Add(new TextBlock { Text = $"{monitor.Bounds.Width} × {monitor.Bounds.Height}  ·  {monitor.Dpi * 100 / 96}% {T("缩放", "scale")}", FontSize = 12, Style = LocalStyle("SecondaryTextStyle") });
         stack.Children.Add(heading);
         int columns = MonitorPanelLayout.ColumnCount(availableWidth);
         var cards = new Grid { ColumnSpacing = 12, RowSpacing = 12 };
@@ -406,7 +412,7 @@ public sealed partial class MainWindow : Window, IDisposable
         var monitor = FindDropMonitor(e.GetPosition(ContentScroll));
         if (monitor is null || draggedWindow is null || busy) { e.AcceptedOperation = DataPackageOperation.None; SetDropMonitor(null); return; }
         hoverTimer.Stop(); SetDropMonitor(monitor.Id);
-        AcceptDrag(e, $"移动到 {monitor.Name}");
+        AcceptDrag(e, T($"移动到 {monitor.Name}", $"Move to {monitor.Name}"));
     }
     private async void OnMonitorDrop(object sender, DragEventArgs e)
     {
@@ -433,7 +439,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 if (card.Parent is Panel previous) previous.Children.Remove(card);
                 grid.Children.Add(card);
             }
-            if (desired.Length == 0) grid.Children.Add(new TextBlock { Text = "屏幕已留空\n将窗口拖到这里", TextAlignment = TextAlignment.Center,
+            if (desired.Length == 0) grid.Children.Add(new TextBlock { Text = T("屏幕已留空\n将窗口拖到这里", "This monitor is empty\nDrop a window here"), TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(12, 72, 12, 72), Style = LocalStyle("SecondaryTextStyle"), FontSize = 15 });
         }
     }
@@ -463,7 +469,7 @@ public sealed partial class MainWindow : Window, IDisposable
         close.Resources["ButtonForegroundPointerOver"] = ColorBrush(255, 255, 255);
         close.Resources["ButtonBackgroundPressed"] = ColorBrush(161, 33, 24);
         close.Resources["ButtonForegroundPressed"] = ColorBrush(255, 255, 255);
-        AutomationProperties.SetName(close, $"关闭 {window.Title}"); ToolTipService.SetToolTip(close, "关闭窗口");
+        AutomationProperties.SetName(close, T($"关闭 {window.Title}", $"Close {window.Title}")); ToolTipService.SetToolTip(close, T("关闭窗口", "Close window"));
         view.CloseButton = close; Grid.SetColumn(close, 2); titleRow.Children.Add(close);
         close.Click += async (_, _) => { view.ClosePressed = false; if (!dragActive && !busy) await CloseWindowAsync(view.Window); };
         close.Tapped += (_, e) => e.Handled = true;
@@ -472,7 +478,7 @@ public sealed partial class MainWindow : Window, IDisposable
         close.PointerCanceled += (_, _) => view.ClosePressed = false;
         close.GotFocus += (_, _) => UpdateCloseButton(view);
         close.LostFocus += (_, _) => UpdateCloseButton(view);
-        var detail = new TextBlock { Text = window.ProcessName + (window.IsPinned ? "  ·  所有桌面" : "") + (window.IsCloaked ? "  ·  后台预览可能暂停" : ""),
+        var detail = new TextBlock { Text = window.ProcessName + (window.IsPinned ? T("  ·  所有桌面", "  ·  all desktops") : "") + (window.IsCloaked ? T("  ·  后台预览可能暂停", "  ·  background preview may pause") : ""),
             FontSize = 12, Style = LocalStyle("SecondaryTextStyle"), TextTrimming = TextTrimming.CharacterEllipsis };
         // Keep the close affordance in the header, outside the native DWM image.
         var content = new StackPanel { Spacing = 9 }; content.Children.Add(titleRow); content.Children.Add(preview); content.Children.Add(detail);
@@ -509,13 +515,13 @@ public sealed partial class MainWindow : Window, IDisposable
             }
             else if (view.Icon.Source is BitmapImage icon) e.DragUI.SetContentFromBitmapImage(icon);
             else e.DragUI.SetContentFromDataPackage();
-            Hint.Text = $"正在移动：{view.Window.Title}  ·  拖到桌面或显示器，Esc 取消";
+            Hint.Text = T($"正在移动：{view.Window.Title}  ·  拖到桌面或显示器，Esc 取消", $"Moving {view.Window.Title}  ·  drop on a desktop or monitor, Esc to cancel");
         };
         card.DropCompleted += async (_, _) =>
         {
             hoverTimer.Stop(); dragActive = false; draggedWindow = null;
             EndDragPreview();
-            Hint.Text = "拖动窗口到显示器或上方桌面 · 悬停桌面可展开跨屏目标 · 右键查看更多";
+            Hint.Text = T("拖动窗口到显示器或上方桌面 · 悬停桌面可展开跨屏目标 · 右键查看更多", "Drag a window to a monitor or desktop · hover a desktop for cross-monitor targets · right-click for more");
             await RefreshAsync(true);
         };
         return view;
@@ -534,7 +540,7 @@ public sealed partial class MainWindow : Window, IDisposable
             AppLog.Write("close-window", result: "requested");
             await Task.Delay(180);
             bool pending = windows.IsValid(window.Identity);
-            Inform(pending ? "已发送关闭请求；若应用有保存提示，请点击该窗口处理。" : "窗口已关闭。",
+            Inform(pending ? T("已发送关闭请求；若应用有保存提示，请点击该窗口处理。", "Close requested; handle any save prompt in the application.") : T("窗口已关闭。", "The window was closed."),
                 pending ? InfoBarSeverity.Informational : InfoBarSeverity.Success);
         });
     }
@@ -548,11 +554,11 @@ public sealed partial class MainWindow : Window, IDisposable
         if (view.Title.Text != window.Title)
         {
             view.Title.Text = window.Title; AutomationProperties.SetName(view.Card, window.Title);
-            AutomationProperties.SetName(view.CloseButton, $"关闭 {window.Title}");
+            AutomationProperties.SetName(view.CloseButton, T($"关闭 {window.Title}", $"Close {window.Title}"));
             ToolTipService.SetToolTip(view.Card, window.Title);
         }
-        view.Detail.Text = window.ProcessName + (window.IsPinned ? "  ·  所有桌面" : "") +
-            (window.State == WindowShowState.Minimized ? "  ·  已最小化 · 保留画面可能暂停" : window.IsCloaked ? "  ·  后台预览可能暂停" : "");
+        view.Detail.Text = window.ProcessName + (window.IsPinned ? T("  ·  所有桌面", "  ·  all desktops") : "") +
+            (window.State == WindowShowState.Minimized ? T("  ·  已最小化 · 保留画面可能暂停", "  ·  minimized · cached frame may pause") : window.IsCloaked ? T("  ·  后台预览可能暂停", "  ·  background preview may pause") : "");
         view.Card.CanDrag = window.CanIdentifyProcess;
         view.CloseButton.IsEnabled = window.CanIdentifyProcess;
         UpdatePreviewStatus(view);
@@ -564,13 +570,13 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         var window = view.Window;
         var menu = new MenuFlyout();
-        var activate = new MenuFlyoutItem { Text = "打开窗口" }; activate.Click += async (_, _) => await ActivateWindowAsync(window); menu.Items.Add(activate);
+        var activate = new MenuFlyoutItem { Text = T("打开窗口", "Open window") }; activate.Click += async (_, _) => await ActivateWindowAsync(window); menu.Items.Add(activate);
         if (!window.IsPinned && snapshot.IsAvailable)
         {
             foreach (var desktop in snapshot.Desktops)
             {
-                var submenu = new MenuFlyoutSubItem { Text = $"移动到 {desktop.Name}" };
-                var same = new MenuFlyoutItem { Text = "保留当前显示器", IsEnabled = window.CanIdentifyProcess };
+                var submenu = new MenuFlyoutSubItem { Text = T($"移动到 {desktop.Name}", $"Move to {desktop.Name}") };
+                var same = new MenuFlyoutItem { Text = T("保留当前显示器", "Keep current monitor"), IsEnabled = window.CanIdentifyProcess };
                 same.Click += async (_, _) => await MoveAsync(new(window.Identity, desktop.Id)); submenu.Items.Add(same);
                 foreach (var monitor in monitorList)
                 {
@@ -584,7 +590,7 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             foreach (var monitor in monitorList)
             {
-                var item = new MenuFlyoutItem { Text = $"移动到 {monitor.Name}", IsEnabled = window.CanIdentifyProcess };
+                var item = new MenuFlyoutItem { Text = T($"移动到 {monitor.Name}", $"Move to {monitor.Name}"), IsEnabled = window.CanIdentifyProcess };
                 item.Click += async (_, _) => await MoveAsync(new(window.Identity, window.DesktopId, monitor.Id)); menu.Items.Add(item);
             }
         }
@@ -660,9 +666,9 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             var result = await mover.MoveAsync(request);
             AppLog.Write("move", result: result.Status.ToString());
-            Inform(result.Message, result.Status == MoveStatus.Success ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+            Inform(LocalizeMessage(result.Message), result.Status == MoveStatus.Success ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
         }
-        catch (Exception ex) { Inform(ex.Message, InfoBarSeverity.Error); AppLog.Write("move", ex); }
+        catch (Exception ex) { Inform(LocalizeMessage(ex.Message), InfoBarSeverity.Error); AppLog.Write("move", ex); }
         finally { busy = false; await RefreshAsync(true); }
     }
     private async Task ActivateWindowAsync(WindowInfo window)
@@ -687,17 +693,17 @@ public sealed partial class MainWindow : Window, IDisposable
     private async void Settings_Click(object sender, RoutedEventArgs e) => await OpenSettingsAsync();
     private async Task RenameDesktopAsync(DesktopInfo desktop)
     {
-        var input = new TextBox { Text = desktop.Name, MaxLength = 80, MinWidth = 340, Header = "桌面名称" };
-        var result = await DialogAsync(new ContentDialog { Title = "重命名桌面", Content = input, PrimaryButtonText = "保存", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Primary });
+        var input = new TextBox { Text = desktop.Name, MaxLength = 80, MinWidth = 340, Header = T("桌面名称", "Desktop name") };
+        var result = await DialogAsync(new ContentDialog { Title = T("重命名桌面", "Rename desktop"), Content = input, PrimaryButtonText = T("保存", "Save"), CloseButtonText = T("取消", "Cancel"), DefaultButton = ContentDialogButton.Primary });
         if (result == ContentDialogResult.Primary) await ExecuteAsync(() => desktops.RenameAsync(desktop.Id, input.Text));
     }
     private async Task RemoveDesktopAsync(DesktopInfo desktop)
     {
         var latest = await desktops.GetSnapshotAsync();
         int index = latest.Desktops.ToList().FindIndex(d => d.Id == desktop.Id);
-        if (index < 0 || latest.Desktops.Count < 2) { Inform("不能删除最后一个桌面。", InfoBarSeverity.Warning); return; }
+        if (index < 0 || latest.Desktops.Count < 2) { Inform(T("不能删除最后一个桌面。", "The last desktop cannot be deleted."), InfoBarSeverity.Warning); return; }
         var fallback = latest.Desktops[index > 0 ? index - 1 : 1];
-        var result = await DialogAsync(new ContentDialog { Title = $"删除“{desktop.Name}”？", Content = $"窗口会移到“{fallback.Name}”，应用会继续运行。", PrimaryButtonText = "删除桌面", CloseButtonText = "取消" });
+        var result = await DialogAsync(new ContentDialog { Title = T($"删除“{desktop.Name}”？", $"Delete “{desktop.Name}” ?"), Content = T($"窗口会移到“{fallback.Name}”，应用会继续运行。", $"Windows will move to “{fallback.Name}”; applications will keep running."), PrimaryButtonText = T("删除桌面", "Delete desktop"), CloseButtonText = T("取消", "Cancel") });
         if (result == ContentDialogResult.Primary) await ExecuteAsync(() => desktops.RemoveAsync(desktop.Id, fallback.Id));
     }
     private async Task<ContentDialogResult> DialogAsync(ContentDialog dialog)
@@ -708,7 +714,7 @@ public sealed partial class MainWindow : Window, IDisposable
         var dialogRoot = new Grid { RequestedTheme = Root.RequestedTheme };
         var rootLoaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         dialogRoot.Loaded += (_, _) => rootLoaded.TrySetResult();
-        var dialogWindow = new Window { Title = dialog.Title?.ToString() ?? "桌面工作区", Content = dialogRoot, SystemBackdrop = new MicaBackdrop() };
+        var dialogWindow = new Window { Title = dialog.Title?.ToString() ?? T("桌面工作区", "Desktop Workspace"), Content = dialogRoot, SystemBackdrop = new MicaBackdrop() };
         if (dialogWindow.AppWindow.Presenter is OverlappedPresenter presenter)
         { presenter.IsResizable = false; presenter.IsMaximizable = false; presenter.IsMinimizable = false; }
         double height = 340;
@@ -739,26 +745,62 @@ public sealed partial class MainWindow : Window, IDisposable
         var alt = new CheckBox { Content = "Alt", IsChecked = (settings.HotkeyModifiers & 1) != 0 };
         var shift = new CheckBox { Content = "Shift", IsChecked = (settings.HotkeyModifiers & 4) != 0 };
         foreach (var box in new[] { win, ctrl, alt, shift }) mods.Children.Add(box);
-        var keys = new List<(string Label, uint Key)> { ("`（反引号）", 0xC0) };
+        var keys = new List<(string Label, uint Key)> { (T("`（反引号）", "` (backtick)"), 0xC0) };
         keys.AddRange(Enumerable.Range(0x41, 26).Select(k => (((char)k).ToString(), (uint)k)));
         keys.AddRange(Enumerable.Range(1, 12).Select(k => ($"F{k}", (uint)(0x6F + k))));
-        var keyCombo = new ComboBox { Header = "主键", ItemsSource = keys.Select(k => k.Label).ToArray(), SelectedIndex = Math.Max(0, keys.FindIndex(k => k.Key == settings.HotkeyKey)), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var keyCombo = new ComboBox { Header = T("主键", "Key"), ItemsSource = keys.Select(k => k.Label).ToArray(), SelectedIndex = Math.Max(0, keys.FindIndex(k => k.Key == settings.HotkeyKey)), HorizontalAlignment = HorizontalAlignment.Stretch };
         var themes = new[] { "Default", "Light", "Dark" };
-        var themeCombo = new ComboBox { Header = "外观", ItemsSource = new[] { "跟随系统", "浅色", "深色" }, SelectedIndex = Math.Max(0, Array.IndexOf(themes, settings.Theme)), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var themeCombo = new ComboBox { Header = T("外观", "Theme"), ItemsSource = new[] { T("跟随系统", "System default"), T("浅色", "Light"), T("深色", "Dark") }, SelectedIndex = Math.Max(0, Array.IndexOf(themes, settings.Theme)), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var languages = new[] { Localization.Chinese, Localization.English };
+        var languageCombo = new ComboBox { Header = T("语言", "Language"), ItemsSource = languages.Select(Localization.LanguageName).ToArray(), SelectedIndex = Math.Max(0, Array.IndexOf(languages, settings.Language)), HorizontalAlignment = HorizontalAlignment.Stretch };
         var content = new StackPanel { Spacing = 16, MinWidth = 380 };
-        content.Children.Add(new TextBlock { Text = "呼出快捷键", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }); content.Children.Add(mods); content.Children.Add(keyCombo); content.Children.Add(themeCombo);
-        content.Children.Add(new TextBlock { Text = "关闭面板后常驻托盘；右键托盘图标可退出。\n兼容基准：Windows 11 25H2 · 26200.6899 · x64", TextWrapping = TextWrapping.Wrap, FontSize = 12, Style = LocalStyle("SecondaryTextStyle") });
-        var result = await DialogAsync(new ContentDialog { Title = "设置", Content = content, PrimaryButtonText = "保存", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Primary });
+        content.Children.Add(new TextBlock { Text = T("呼出快捷键", "Show / hide shortcut"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }); content.Children.Add(mods); content.Children.Add(keyCombo); content.Children.Add(themeCombo); content.Children.Add(languageCombo);
+        content.Children.Add(new TextBlock { Text = T("关闭面板后常驻托盘；右键托盘图标可退出。\n兼容基准：Windows 11 25H2 · 26200.6899 · x64", "The manager stays in the tray when hidden; right-click the tray icon to exit.\nValidated on Windows 11 25H2 · 26200.6899 · x64"), TextWrapping = TextWrapping.Wrap, FontSize = 12, Style = LocalStyle("SecondaryTextStyle") });
+        var result = await DialogAsync(new ContentDialog { Title = T("设置", "Settings"), Content = content, PrimaryButtonText = T("保存", "Save"), CloseButtonText = T("取消", "Cancel"), DefaultButton = ContentDialogButton.Primary });
         if (result != ContentDialogResult.Primary) return;
         uint modifiers = (win.IsChecked == true ? 8u : 0) | (ctrl.IsChecked == true ? 2u : 0) | (alt.IsChecked == true ? 1u : 0) | (shift.IsChecked == true ? 4u : 0);
-        if ((modifiers & 11) == 0) { Inform("快捷键至少需要 Win、Ctrl、Alt 中的一个修饰键。", InfoBarSeverity.Warning); return; }
-        var candidate = new AppSettings(modifiers, keys[keyCombo.SelectedIndex].Key, themes[themeCombo.SelectedIndex]);
+        if ((modifiers & 11) == 0) { Inform(T("快捷键至少需要 Win、Ctrl、Alt 中的一个修饰键。", "The shortcut needs at least one of Win, Ctrl, or Alt."), InfoBarSeverity.Warning); return; }
+        var language = languages[Math.Clamp(languageCombo.SelectedIndex, 0, languages.Length - 1)];
+        var candidate = new AppSettings(modifiers, keys[Math.Clamp(keyCombo.SelectedIndex, 0, keys.Count - 1)].Key, themes[Math.Clamp(themeCombo.SelectedIndex, 0, themes.Length - 1)], language);
         if (!shell.RegisterHotkey(candidate))
         {
-            shell.RegisterHotkey(settings); Inform("该快捷键已被占用，原设置已保留。", InfoBarSeverity.Warning); return;
+            shell.RegisterHotkey(settings); Inform(T("该快捷键已被占用，原设置已保留。", "That shortcut is already in use; the previous setting was kept."), InfoBarSeverity.Warning); return;
         }
-        try { candidate.Save(); settings = candidate; ApplyTheme(); ShortcutHint.Text = $"{settings.HotkeyLabel} 呼出 / 收起"; Inform("设置已保存。", InfoBarSeverity.Success); Render(); }
-        catch (Exception ex) { shell.RegisterHotkey(settings); Inform($"设置保存失败：{ex.Message}", InfoBarSeverity.Error); }
+        try { candidate.Save(); settings = candidate; Localization.Set(settings.Language); shell.UpdateLanguage(); ApplyLanguage(); ApplyTheme(); Render(); }
+        catch (Exception ex) { shell.RegisterHotkey(settings); Inform(T($"设置保存失败：{ex.Message}", $"Settings could not be saved: {ex.Message}"), InfoBarSeverity.Error); }
+    }
+    private static string T(string chinese, string english) => Localization.T(chinese, english);
+    private static string LocalizeMessage(string message) => message switch
+    {
+        "窗口已关闭或无法确认进程身份。" => T("窗口已关闭或无法确认进程身份。", "The window is closed or its process identity could not be verified."),
+        "此窗口固定在所有桌面，只能移动显示器。" => T("此窗口固定在所有桌面，只能移动显示器。", "This window is pinned to all desktops and can only move between monitors."),
+        "目标桌面已消失或当前系统不支持桌面操作。" => T("目标桌面已消失或当前系统不支持桌面操作。", "The target desktop disappeared or desktop operations are unavailable."),
+        "显示器已断开，请刷新后重试。" => T("显示器已断开，请刷新后重试。", "The monitor was disconnected. Refresh and try again."),
+        "窗口已关闭。" => T("窗口已关闭。", "The window is closed."),
+        "目标显示器已断开。" => T("目标显示器已断开。", "The target monitor was disconnected."),
+        "系统未应用完整的目标位置或窗口状态。" => T("系统未应用完整的目标位置或窗口状态。", "Windows did not apply the complete target position or window state."),
+        _ when message.StartsWith("移动失败，已恢复原位置：", StringComparison.Ordinal) => T(message, "The move failed; the original position was restored: " + message["移动失败，已恢复原位置：".Length..]),
+        _ when message.StartsWith("移动未完全完成，请查看窗口当前所在位置：", StringComparison.Ordinal) => T(message, "The move was only partially completed. Check the window's current location: " + message["移动未完全完成，请查看窗口当前所在位置：".Length..]),
+        "窗口或显示器尺寸无效。" => T("窗口或显示器尺寸无效。", "The window or monitor dimensions are invalid."),
+        _ => message
+    };
+    private string WindowCount(int count) => T($"{count} 个窗口", $"{count} window" + (count == 1 ? "" : "s"));
+    private void ApplyLanguage()
+    {
+        Title = T("桌面工作区管理器", "Desktop Workspace Manager");
+        AppTitle.Text = T("桌面工作区", "Desktop Workspace");
+        EnterButton.Content = T("进入桌面", "Enter desktop");
+        RefreshButton.Content = T("刷新", "Refresh");
+        SettingsButton.Content = T("设置", "Settings");
+        HideButton.Content = T("收起", "Hide");
+        ToolTipService.SetToolTip(HideButton, T("Esc · 收起到托盘", "Esc · Hide to tray"));
+        CreateButton.Content = T("＋ 新建桌面", "＋ New desktop");
+        Hint.Text = T("拖动窗口到显示器或上方桌面 · 悬停桌面可展开跨屏目标 · 右键查看更多",
+            "Drag a window to a monitor or desktop · hover a desktop for cross-monitor targets · right-click for more");
+        ShortcutHint.Text = $"{settings.HotkeyLabel} {T("呼出 / 收起", "show / hide")}";
+        desktopSignature = "";
+        layoutSignature = "";
+        foreach (var card in previewCards.Values) card.MenuSignature = "";
     }
     private void ApplyTheme() => Root.RequestedTheme = settings.Theme switch { "Light" => ElementTheme.Light, "Dark" => ElementTheme.Dark, _ => ElementTheme.Default };
     private void Inform(string text, InfoBarSeverity severity)
@@ -810,7 +852,7 @@ public sealed partial class MainWindow : Window, IDisposable
         // Never keep invalidating layout for an unavailable/closed source.
         var visibility = view.Preview.IsAvailable ? Visibility.Collapsed : Visibility.Visible;
         if (view.Fallback.Visibility != visibility) view.Fallback.Visibility = visibility;
-        string status = view.Preview.UnavailableReason ?? "系统暂时无法提供预览";
+        string status = view.Preview.UnavailableReason ?? T("系统暂时无法提供预览", "The system cannot provide a preview right now");
         if (!view.Preview.IsAvailable && view.Status.Text != status) view.Status.Text = status;
     }
     private void QueuePreviewStatusUpdate(WindowCardView view)

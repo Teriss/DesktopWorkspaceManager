@@ -22,9 +22,9 @@ public sealed class MonitorService : IMonitorService
     internal static MonitorInfo FromHandle(nint handle)
     {
         var info = new Native.MONITORINFOEX { Size = (uint)Marshal.SizeOf<Native.MONITORINFOEX>(), Device = "" };
-        if (!Native.GetMonitorInfo(handle, ref info)) throw new InvalidOperationException("无法读取显示器信息。");
+        if (!Native.GetMonitorInfo(handle, ref info)) throw new InvalidOperationException(Localization.T("无法读取显示器信息。", "Monitor information could not be read."));
         Native.GetDpiForMonitor(handle, 0, out uint dpi, out _);
         var number = new string(info.Device.Where(char.IsDigit).ToArray());
-        return new(info.Device, $"显示器 {number}", info.Monitor.ToRect(), info.Work.ToRect(), dpi == 0 ? 96 : dpi, (info.Flags & 1) != 0);
+        return new(info.Device, Localization.T($"显示器 {number}", $"Monitor {number}"), info.Monitor.ToRect(), info.Work.ToRect(), dpi == 0 ? 96 : dpi, (info.Flags & 1) != 0);
     }
 }

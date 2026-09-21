@@ -20,11 +20,13 @@ try {
     New-Item -ItemType Directory -Force -Path $validationDir | Out-Null
     Copy-Item -LiteralPath $reportPath -Destination (Join-Path $validationDir 'published-ui-smoke-test.json')
     Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination $publishDir
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'README.zh-CN.md') -Destination $publishDir
     Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination $publishDir
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\VALIDATION.md') -Destination $publishDir
     $docsDir = Join-Path $publishDir 'docs'
     New-Item -ItemType Directory -Force -Path $docsDir | Out-Null
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\VALIDATION.md') -Destination $docsDir
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\RELEASE_NOTES-0.1.4.md') -Destination $docsDir
     $licenseDir = Join-Path $publishDir 'licenses\VirtualDesktopAccessor'
     New-Item -ItemType Directory -Force -Path $licenseDir | Out-Null
     Copy-Item -LiteralPath (Join-Path $projectRoot 'third_party\VirtualDesktopAccessor\LICENSE.txt') -Destination $licenseDir
