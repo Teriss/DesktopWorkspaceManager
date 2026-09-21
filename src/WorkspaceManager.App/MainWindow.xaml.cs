@@ -779,6 +779,10 @@ public sealed partial class MainWindow : Window, IDisposable
         "窗口已关闭。" => T("窗口已关闭。", "The window is closed."),
         "目标显示器已断开。" => T("目标显示器已断开。", "The target monitor was disconnected."),
         "系统未应用完整的目标位置或窗口状态。" => T("系统未应用完整的目标位置或窗口状态。", "Windows did not apply the complete target position or window state."),
+        "此窗口不允许预览" => T("此窗口不允许预览", "This window does not allow previews"),
+        "无法创建预览" => T("无法创建预览", "The preview host could not be created"),
+        "系统暂时无法提供预览" => T("系统暂时无法提供预览", "The system cannot provide a preview right now"),
+        "窗口预览已失效" => T("窗口预览已失效", "The window preview is no longer available"),
         _ when message.StartsWith("移动失败，已恢复原位置：", StringComparison.Ordinal) => T(message, "The move failed; the original position was restored: " + message["移动失败，已恢复原位置：".Length..]),
         _ when message.StartsWith("移动未完全完成，请查看窗口当前所在位置：", StringComparison.Ordinal) => T(message, "The move was only partially completed. Check the window's current location: " + message["移动未完全完成，请查看窗口当前所在位置：".Length..]),
         "窗口或显示器尺寸无效。" => T("窗口或显示器尺寸无效。", "The window or monitor dimensions are invalid."),
@@ -852,7 +856,7 @@ public sealed partial class MainWindow : Window, IDisposable
         // Never keep invalidating layout for an unavailable/closed source.
         var visibility = view.Preview.IsAvailable ? Visibility.Collapsed : Visibility.Visible;
         if (view.Fallback.Visibility != visibility) view.Fallback.Visibility = visibility;
-        string status = view.Preview.UnavailableReason ?? T("系统暂时无法提供预览", "The system cannot provide a preview right now");
+        string status = LocalizeMessage(view.Preview.UnavailableReason ?? "系统暂时无法提供预览");
         if (!view.Preview.IsAvailable && view.Status.Text != status) view.Status.Text = status;
     }
     private void QueuePreviewStatusUpdate(WindowCardView view)
