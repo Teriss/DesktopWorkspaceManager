@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows10.0.26100": {
+      "workspacemanager.core": {
+        "type": "Project"
+      },
+      "workspacemanager.windows": {
+        "type": "Project",
+        "dependencies": {
+          "WorkspaceManager.Core": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

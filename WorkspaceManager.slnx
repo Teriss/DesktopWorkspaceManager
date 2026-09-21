@@ -1,0 +1,20 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/WorkspaceManager.App/WorkspaceManager.App.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/WorkspaceManager.Core/WorkspaceManager.Core.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/WorkspaceManager.Windows/WorkspaceManager.Windows.csproj"><Platform Project="x64" /></Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WorkspaceManager.Tests/WorkspaceManager.Tests.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/WorkspaceManager.Diagnostics/WorkspaceManager.Diagnostics.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+</Solution>
